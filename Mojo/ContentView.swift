@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ContentView: View {
     @State var todos: [Todo] = []
+    @EnvironmentObject var sessionManager: SessionManager
 
     var body: some View {
         NavigationStack {
@@ -10,6 +11,11 @@ struct ContentView: View {
                 Text(todo.title)
             }
             .navigationTitle("Todos")
+            .toolbar {
+                Button("Sign Out") {
+                    Task { await signOut() }
+                }
+            }
             .task {
                 do {
                     todos = try await supabase.from("todos").select().execute().value
@@ -19,8 +25,18 @@ struct ContentView: View {
             }
         }
     }
+
+    @MainActor
+    private func signOut() async {
+        do {
+            try await supabase.auth.signOut()
+        } catch {
+            debugPrint("Sign out error: \(error)")
+        }
+    }
 }
 
 #Preview {
     ContentView()
+        .environmentObject(SessionManager())
 }

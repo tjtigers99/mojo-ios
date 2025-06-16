@@ -46,3 +46,6 @@ Create `Mojo/Supabase.swift` with your project URL and anon key as shown in the 
 ### 3. Fetch Packages
 Open `Mojo.xcodeproj` in Xcode and resolve Swift Package dependencies to download the `supabase-swift` package.
 
+
+### 4. Run the App
+Open the project in Xcode, build and run. Sign in with your Supabase credentials on the login screen. Use the Sign Out button in the Todos list to end your session.

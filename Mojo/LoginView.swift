@@ -4,6 +4,7 @@ struct LoginView: View {
     @State private var email = ""
     @State private var password = ""
     @EnvironmentObject var sessionManager: SessionManager
+    @State private var loginError: String?
 
     var body: some View {
         VStack(spacing: 16) {
@@ -28,6 +29,11 @@ struct LoginView: View {
             .buttonStyle(.borderedProminent)
         }
         .padding()
+        .alert("Login Error", isPresented: .constant(loginError != nil), actions: {
+            Button("OK", role: .cancel) { loginError = nil }
+        }, message: {
+            if let loginError { Text(loginError) }
+        })
     }
 
     @MainActor
@@ -35,7 +41,7 @@ struct LoginView: View {
         do {
             try await supabase.auth.signIn(email: email, password: password)
         } catch {
-            print("Login error: \(error)")
+            loginError = error.localizedDescription
         }
     }
 }
