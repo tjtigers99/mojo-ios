@@ -1,16 +1,15 @@
-import Supabase
 import SwiftUI
 
 struct ContentView: View {
     @State private var todos: [Todo] = []
     @State private var email: String = ""
     @State private var password: String = ""
-    @State private var isLoggedIn: Bool = false
+    @State private var accessToken: String?
     @State private var errorMessage: String?
 
     var body: some View {
         NavigationStack {
-            if isLoggedIn {
+            if let token = accessToken {
                 List(todos) { todo in
                     Text(todo.title)
                 }
@@ -19,7 +18,7 @@ struct ContentView: View {
                     Button("Logout", action: signOut)
                 }
                 .task {
-                    await loadTodos()
+                    await loadTodos(token: token)
                 }
             } else {
                 VStack(spacing: 16) {
@@ -41,9 +40,9 @@ struct ContentView: View {
         }
     }
 
-    private func loadTodos() async {
+    private func loadTodos(token: String) async {
         do {
-            todos = try await supabase.from("todos").select().execute().value
+            todos = try await SupabaseAPI.fetchTodos(accessToken: token)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -52,8 +51,8 @@ struct ContentView: View {
     private func signIn() {
         Task {
             do {
-                try await supabase.auth.signIn(email: email, password: password)
-                isLoggedIn = true
+                let token = try await SupabaseAPI.signIn(email: email, password: password)
+                accessToken = token
                 errorMessage = nil
             } catch {
                 errorMessage = error.localizedDescription
@@ -62,15 +61,8 @@ struct ContentView: View {
     }
 
     private func signOut() {
-        Task {
-            do {
-                try await supabase.auth.signOut()
-                isLoggedIn = false
-                todos = []
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-        }
+        accessToken = nil
+        todos = []
     }
 }
 
