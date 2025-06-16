@@ -43,3 +43,6 @@ cd mojo-ios
 ### 2. Configure Supabase
 Create `Mojo/Supabase.swift` with your project URL and anon key as shown in the source.
 
+### 3. Fetch Packages
+Open `Mojo.xcodeproj` in Xcode and resolve Swift Package dependencies to download the `supabase-swift` package.
+

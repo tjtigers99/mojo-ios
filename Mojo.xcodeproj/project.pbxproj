@@ -111,8 +111,9 @@
 				B7DAB6BC2DFF75AB003C77AD /* Mojo */,
 			);
 			name = Mojo;
-			packageProductDependencies = (
-			);
+                       packageProductDependencies = (
+                               B7DAB72A2E00D7B4003C77AD /* Supabase */,
+                       );
 			productName = Mojo;
 			productReference = B7DAB6BA2DFF75AB003C77AD /* Mojo.app */;
 			productType = "com.apple.product-type.application";
@@ -134,8 +135,9 @@
 				B7DAB6CA2DFF75AD003C77AD /* MojoTests */,
 			);
 			name = MojoTests;
-			packageProductDependencies = (
-			);
+                       packageProductDependencies = (
+                               B7DAB72A2E00D7B4003C77AD /* Supabase */,
+                       );
 			productName = MojoTests;
 			productReference = B7DAB6C72DFF75AD003C77AD /* MojoTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -157,8 +159,9 @@
 				B7DAB6D42DFF75AD003C77AD /* MojoUITests */,
 			);
 			name = MojoUITests;
-			packageProductDependencies = (
-			);
+                       packageProductDependencies = (
+                               B7DAB72A2E00D7B4003C77AD /* Supabase */,
+                       );
 			productName = MojoUITests;
 			productReference = B7DAB6D12DFF75AD003C77AD /* MojoUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -561,6 +564,14 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCSwiftPackageProductDependency section */
+               B7DAB72A2E00D7B4003C77AD /* Supabase */ = {
+                       isa = XCSwiftPackageProductDependency;
+                       productName = Supabase;
+                       package = B7DAB7282E00D7B4003C77AD /* XCRemoteSwiftPackageReference "supabase-swift" */;
+               };
+/* End XCSwiftPackageProductDependency section */
 
 /* Begin XCRemoteSwiftPackageReference section */
 		B7DAB7282E00D7B4003C77AD /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
