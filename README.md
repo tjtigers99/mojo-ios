@@ -39,3 +39,7 @@ Mojo is a habit tracking and personal development app built in **SwiftUI** for i
 ```bash
 git clone https://github.com/yourusername/mojo-ios.git
 cd mojo-ios
+
+### 2. Configure Supabase
+Create `Mojo/Supabase.swift` with your project URL and anon key as shown in the source.
+
