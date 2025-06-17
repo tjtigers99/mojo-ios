@@ -6,6 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		B7D875B32E00E5C6009D1F04 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = B7DAB72A2E00D7B4003C77AD /* Supabase */; };
+		B7D875B42E00E5C6009D1F04 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = B7DAB72A2E00D7B4003C77AD /* Supabase */; };
+		B7D875B52E00E5C6009D1F04 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = B7DAB72A2E00D7B4003C77AD /* Supabase */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		B7DAB6C82DFF75AD003C77AD /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +58,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B7D875B32E00E5C6009D1F04 /* Supabase in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -59,6 +66,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B7D875B42E00E5C6009D1F04 /* Supabase in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -66,6 +74,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B7D875B52E00E5C6009D1F04 /* Supabase in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -111,9 +120,9 @@
 				B7DAB6BC2DFF75AB003C77AD /* Mojo */,
 			);
 			name = Mojo;
-                       packageProductDependencies = (
-                               B7DAB72A2E00D7B4003C77AD /* Supabase */,
-                       );
+			packageProductDependencies = (
+				B7DAB72A2E00D7B4003C77AD /* Supabase */,
+			);
 			productName = Mojo;
 			productReference = B7DAB6BA2DFF75AB003C77AD /* Mojo.app */;
 			productType = "com.apple.product-type.application";
@@ -135,9 +144,9 @@
 				B7DAB6CA2DFF75AD003C77AD /* MojoTests */,
 			);
 			name = MojoTests;
-                       packageProductDependencies = (
-                               B7DAB72A2E00D7B4003C77AD /* Supabase */,
-                       );
+			packageProductDependencies = (
+				B7DAB72A2E00D7B4003C77AD /* Supabase */,
+			);
 			productName = MojoTests;
 			productReference = B7DAB6C72DFF75AD003C77AD /* MojoTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -159,9 +168,9 @@
 				B7DAB6D42DFF75AD003C77AD /* MojoUITests */,
 			);
 			name = MojoUITests;
-                       packageProductDependencies = (
-                               B7DAB72A2E00D7B4003C77AD /* Supabase */,
-                       );
+			packageProductDependencies = (
+				B7DAB72A2E00D7B4003C77AD /* Supabase */,
+			);
 			productName = MojoUITests;
 			productReference = B7DAB6D12DFF75AD003C77AD /* MojoUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -565,14 +574,6 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCSwiftPackageProductDependency section */
-               B7DAB72A2E00D7B4003C77AD /* Supabase */ = {
-                       isa = XCSwiftPackageProductDependency;
-                       productName = Supabase;
-                       package = B7DAB7282E00D7B4003C77AD /* XCRemoteSwiftPackageReference "supabase-swift" */;
-               };
-/* End XCSwiftPackageProductDependency section */
-
 /* Begin XCRemoteSwiftPackageReference section */
 		B7DAB7282E00D7B4003C77AD /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -583,6 +584,14 @@
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		B7DAB72A2E00D7B4003C77AD /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B7DAB7282E00D7B4003C77AD /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = B7DAB6B22DFF75AB003C77AD /* Project object */;
 }

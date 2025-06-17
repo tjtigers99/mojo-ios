@@ -18,7 +18,7 @@ struct ContentView: View {
             }
             .task {
                 do {
-                    todos = try await supabase.from("todos").select().execute().value
+                    todos = try await supabase.from("habits").select().execute().value
                 } catch {
                     debugPrint(error)
                 }
