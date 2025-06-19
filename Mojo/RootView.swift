@@ -8,7 +8,7 @@ struct RootView: View {
             if sessionManager.session == nil {
                 LoginView()
             } else {
-                ContentView()
+                HabitTracker()
             }
         }
     }
