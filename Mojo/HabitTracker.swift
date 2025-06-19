@@ -6,12 +6,14 @@ struct Habit: Identifiable, Codable, Equatable {
     let name: String
     let frequency: String
     let goal: Int
+    let priority: Int?
 
     enum CodingKeys: String, CodingKey {
         case id
         case name
         case frequency
         case goal
+        case priority
     }
 }
 
@@ -36,6 +38,7 @@ struct HabitTracker: View {
     @State private var currentDate = Date()
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var isShowingAddHabitSheet = false
 
     private var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
@@ -73,7 +76,7 @@ struct HabitTracker: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
-                        // TODO: Implement Add Habit functionality
+                        isShowingAddHabitSheet = true
                     }) {
                         HStack {
                             Image(systemName: "plus")
@@ -91,6 +94,13 @@ struct HabitTracker: View {
                 Task {
                     await fetchLogEntries(for: currentDate)
                 }
+            }
+            .sheet(isPresented: $isShowingAddHabitSheet) {
+                AddHabitView { newHabit in
+                    habits.append(newHabit)
+                    progress[newHabit.id] = 0
+                }
+                .environmentObject(sessionManager)
             }
         }
     }
@@ -325,7 +335,7 @@ struct HabitRow: View {
                 }
             }
             
-            ProgressView(value: Double(progress), total: Double(habit.goal))
+            ProgressView(value: clampedProgress, total: totalForProgressView)
                 .progressViewStyle(LinearProgressViewStyle(tint: .blue))
             
             Text(progressText)
@@ -339,6 +349,17 @@ struct HabitRow: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.gray.opacity(0.2), lineWidth: 1)
         )
+    }
+
+    private var clampedProgress: Double {
+        let goal = Double(habit.goal)
+        guard goal > 0 else { return 0 }
+        return min(Double(progress), goal)
+    }
+
+    private var totalForProgressView: Double {
+        let goal = Double(habit.goal)
+        return goal > 0 ? goal : 1
     }
 
     private var progressText: String {
