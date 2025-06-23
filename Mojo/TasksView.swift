@@ -464,8 +464,160 @@ struct AddTaskView: View {
 #if DEBUG
 struct TasksView_Previews: PreviewProvider {
     static var previews: some View {
-        TasksView()
-            .environmentObject(SessionManager())
+        return TasksViewPreview()
+            .environmentObject(MockSessionManager.create())
+    }
+}
+
+// Preview-specific version with mock data
+struct TasksViewPreview: View {
+    @EnvironmentObject var sessionManager: SessionManager
+    @State private var tasks: [MojoTask] = [
+        MojoTask(
+            id: UUID(),
+            user_id: UUID(),
+            name: "Complete project proposal",
+            status: "open",
+            priority: 1,
+            initial_deadline: Calendar.current.date(byAdding: .day, value: 3, to: Date()),
+            date_completed: nil,
+            created_at: Date(),
+            tags: ["work", "urgent"]
+        ),
+        MojoTask(
+            id: UUID(),
+            user_id: UUID(),
+            name: "Buy groceries",
+            status: "completed",
+            priority: 2,
+            initial_deadline: Calendar.current.date(byAdding: .day, value: -1, to: Date()),
+            date_completed: Date(),
+            created_at: Calendar.current.date(byAdding: .day, value: -2, to: Date()) ?? Date(),
+            tags: ["personal"]
+        ),
+        MojoTask(
+            id: UUID(),
+            user_id: UUID(),
+            name: "Schedule dentist appointment",
+            status: "open",
+            priority: 3,
+            initial_deadline: Calendar.current.date(byAdding: .day, value: 7, to: Date()),
+            date_completed: nil,
+            created_at: Date(),
+            tags: ["health"]
+        )
+    ]
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    @State private var isShowingAddTaskSheet = false
+    @State private var statusFilter: String = "All"
+
+    private var filteredTasks: [MojoTask] {
+        switch statusFilter {
+        case "Open":
+            return tasks.filter { $0.status.lowercased() == "open" }
+        case "Completed":
+            return tasks.filter { $0.status.lowercased() == "completed" }
+        default:
+            return tasks
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 0) {
+                headerView
+
+                if isLoading {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
+                } else if let errorMessage {
+                    Spacer()
+                    Text("Error: \(errorMessage)")
+                        .foregroundColor(.red)
+                        .padding()
+                    Spacer()
+                } else {
+                    tasksListView
+                }
+            }
+            .navigationTitle("Your Tasks")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        isShowingAddTaskSheet = true
+                    }) {
+                        HStack {
+                            Image(systemName: "plus")
+                            Text("Add Task")
+                        }
+                    }
+                    .tint(.green)
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+            .sheet(isPresented: $isShowingAddTaskSheet) {
+                AddTaskView { newTask in
+                    tasks.append(newTask)
+                }
+                .environmentObject(sessionManager)
+            }
+        }
+    }
+
+    private var headerView: some View {
+        HStack {
+            Text("Your Tasks")
+                .font(.largeTitle)
+                .bold()
+                .padding(.leading)
+            Spacer()
+        }
+        .padding(.bottom, 8)
+    }
+
+    private var tasksListView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            filterView
+                .padding(.horizontal)
+
+            ScrollView {
+                VStack(spacing: 12) {
+                    ForEach(filteredTasks) { task in
+                        TaskRow(task: task) { completed in
+                            if let index = tasks.firstIndex(where: { $0.id == task.id }) {
+                                tasks[index] = MojoTask(
+                                    id: task.id,
+                                    user_id: task.user_id,
+                                    name: task.name,
+                                    status: completed ? "completed" : "open",
+                                    priority: task.priority,
+                                    initial_deadline: task.initial_deadline,
+                                    date_completed: completed ? Date() : nil,
+                                    created_at: task.created_at,
+                                    tags: task.tags
+                                )
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal)
+            }
+        }
+    }
+
+    private var filterView: some View {
+        HStack {
+            Picker("Status", selection: $statusFilter) {
+                Text("All").tag("All")
+                Text("Open").tag("Open")
+                Text("Completed").tag("Completed")
+            }
+            .pickerStyle(.menu)
+            Spacer()
+        }
     }
 }
 #endif 

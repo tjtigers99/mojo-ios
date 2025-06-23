@@ -1103,8 +1103,291 @@ struct CombinedChartDataPoint: Identifiable {
 #if DEBUG
 struct CheckInsView_Previews: PreviewProvider {
     static var previews: some View {
-        CheckInsView()
-            .environmentObject(SessionManager())
+        return CheckInsViewPreview()
+            .environmentObject(MockSessionManager.create())
+    }
+}
+
+// Preview-specific version with mock data
+struct CheckInsViewPreview: View {
+    @EnvironmentObject var sessionManager: SessionManager
+    @State private var categories: [CheckInCategory] = [
+        CheckInCategory(
+            id: UUID(),
+            user_id: UUID(),
+            name: "Relationships",
+            is_archived: false,
+            created_at: Date(),
+            archived_at: nil
+        ),
+        CheckInCategory(
+            id: UUID(),
+            user_id: UUID(),
+            name: "Work",
+            is_archived: false,
+            created_at: Date(),
+            archived_at: nil
+        ),
+        CheckInCategory(
+            id: UUID(),
+            user_id: UUID(),
+            name: "Health",
+            is_archived: false,
+            created_at: Date(),
+            archived_at: nil
+        )
+    ]
+    @State private var todayRatings: [CheckInRating] = []
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    @State private var showingCategoryManager = false
+    @State private var showingTrends = false
+    @State private var selectedDate = Date()
+    @State private var hasSubmittedToday = false
+    @State private var isEditMode = false
+    @State private var historicalCheckIns: [CheckIn] = []
+    
+    private var activeCategories: [CheckInCategory] {
+        categories.filter { !$0.is_archived }
+    }
+    
+    private var dateFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }
+    
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 0) {
+                headerView
+                
+                if isLoading {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
+                } else if let errorMessage {
+                    Spacer()
+                    Text("Error: \(errorMessage)")
+                        .foregroundColor(.red)
+                        .padding()
+                    Spacer()
+                } else {
+                    mainContentView
+                }
+            }
+            .navigationTitle("Daily Check-In")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Categories") {
+                        showingCategoryManager = true
+                    }
+                    .tint(.blue)
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Trends") {
+                        showingTrends = true
+                    }
+                    .tint(.green)
+                }
+            }
+            .onAppear {
+                setupMockData()
+            }
+            .sheet(isPresented: $showingCategoryManager) {
+                CategoryManagerView(categories: $categories)
+                    .environmentObject(sessionManager)
+            }
+            .sheet(isPresented: $showingTrends) {
+                TrendsView(categories: activeCategories)
+                    .environmentObject(sessionManager)
+            }
+        }
+    }
+    
+    private func setupMockData() {
+        // Set up mock ratings
+        todayRatings = activeCategories.map { category in
+            CheckInRating(
+                categoryId: category.id,
+                categoryName: category.name,
+                rating: Int.random(in: 4...8),
+                note: category.name == "Work" ? "Had a productive meeting" : ""
+            )
+        }
+        
+        // Set up mock historical data
+        let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+        historicalCheckIns = activeCategories.flatMap { category in
+            (0..<30).map { dayOffset in
+                let date = Calendar.current.date(byAdding: .day, value: dayOffset, to: thirtyDaysAgo) ?? Date()
+                return CheckIn(
+                    id: UUID(),
+                    user_id: UUID(),
+                    category_id: category.id,
+                    rating: Int.random(in: 3...8),
+                    date: dateFormatter.string(from: date),
+                    created_at: date,
+                    note: nil
+                )
+            }
+        }
+        
+        hasSubmittedToday = true
+    }
+    
+    private var headerView: some View {
+        HStack {
+            Text("Daily Check-In")
+                .font(.largeTitle)
+                .bold()
+                .padding(.leading)
+            Spacer()
+        }
+        .padding(.bottom, 8)
+    }
+    
+    private var mainContentView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            dateSelectorView
+                .padding(.horizontal)
+            
+            if activeCategories.isEmpty {
+                emptyStateView
+            } else {
+                if isEditMode || !hasSubmittedToday {
+                    ratingsView
+                } else {
+                    progressView
+                }
+            }
+        }
+    }
+    
+    private var dateSelectorView: some View {
+        HStack {
+            Image(systemName: "calendar")
+            Text("Check-in for")
+                .font(.headline)
+            Spacer()
+            Button(action: {
+                selectedDate = Calendar.current.date(byAdding: .day, value: -1, to: selectedDate) ?? Date()
+            }) {
+                Image(systemName: "chevron.left")
+            }
+            .buttonStyle(.plain)
+            
+            Text(dateFormatter.string(from: selectedDate))
+                .font(.subheadline)
+                .frame(minWidth: 120)
+            
+            Button(action: {
+                selectedDate = Calendar.current.date(byAdding: .day, value: 1, to: selectedDate) ?? Date()
+            }) {
+                Image(systemName: "chevron.right")
+            }
+            .buttonStyle(.plain)
+        }
+    }
+    
+    private var emptyStateView: some View {
+        VStack(spacing: 20) {
+            Spacer()
+            Image(systemName: "plus.circle")
+                .font(.system(size: 60))
+                .foregroundColor(.blue.opacity(0.6))
+            
+            Text("No Categories Yet")
+                .font(.title2)
+                .fontWeight(.semibold)
+            
+            Text("Add some categories to start tracking your daily well-being")
+                .font(.body)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+            
+            Button("Add Categories") {
+                showingCategoryManager = true
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.blue)
+            
+            Spacer()
+        }
+        .padding()
+    }
+    
+    private var ratingsView: some View {
+        VStack(spacing: 16) {
+            ScrollView {
+                VStack(spacing: 16) {
+                    ForEach(Array(todayRatings.enumerated()), id: \.element.categoryId) { index, rating in
+                        RatingCard(
+                            rating: rating,
+                            onRatingChanged: { newRating in
+                                todayRatings[index].rating = newRating
+                            },
+                            onNoteChanged: { newNote in
+                                todayRatings[index].note = newNote
+                            }
+                        )
+                    }
+                }
+                .padding(.horizontal)
+            }
+            
+            submitButton
+                .padding(.horizontal)
+        }
+    }
+    
+    private var progressView: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Text("Today's Progress")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                Spacer()
+                Button("Edit") {
+                    isEditMode = true
+                }
+                .buttonStyle(.bordered)
+                .tint(.blue)
+            }
+            .padding(.horizontal)
+            
+            ScrollView {
+                VStack(spacing: 16) {
+                    ForEach(todayRatings, id: \.categoryId) { rating in
+                        CategoryProgressCard(
+                            rating: rating,
+                            historicalData: historicalCheckIns.filter { $0.category_id == rating.categoryId },
+                            selectedDate: selectedDate
+                        )
+                    }
+                }
+                .padding(.horizontal)
+            }
+        }
+    }
+    
+    private var submitButton: some View {
+        Button(action: {
+            hasSubmittedToday = true
+            isEditMode = false
+        }) {
+            Text("Submit Ratings")
+                .fontWeight(.semibold)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .foregroundColor(.white)
+                .background(Color.green)
+                .cornerRadius(12)
+        }
+        .disabled(todayRatings.isEmpty || !todayRatings.contains { $0.rating > 0 })
     }
 }
 #endif 

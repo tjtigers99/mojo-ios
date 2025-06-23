@@ -452,4 +452,186 @@ private extension Date {
     }
 }
 
+#if DEBUG
+struct HabitTracker_Previews: PreviewProvider {
+    static var previews: some View {
+        return HabitTrackerPreview()
+            .environmentObject(MockSessionManager.create())
+    }
+}
+
+// Preview-specific version with mock data
+struct HabitTrackerPreview: View {
+    @EnvironmentObject var sessionManager: SessionManager
+    @State private var habits: [Habit] = [
+        Habit(id: UUID(), name: "Morning Exercise", frequency: "daily", goal: 1, priority: 1),
+        Habit(id: UUID(), name: "Read 30 minutes", frequency: "daily", goal: 1, priority: 2),
+        Habit(id: UUID(), name: "Weekly Review", frequency: "weekly", goal: 1, priority: 3)
+    ]
+    @State private var progress: [UUID: Int] = [:]
+    @State private var weeklyDisplayProgress: [UUID: Int] = [:]
+    @State private var totalProgress: [UUID: Int] = [:]
+    @State private var currentDate = Date()
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    @State private var isShowingAddHabitSheet = false
+
+    private var dateFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE, MMMM d"
+        return formatter
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 0) {
+                headerView
+
+                if isLoading {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
+                } else if let errorMessage {
+                    Spacer()
+                    Text("Error: \(errorMessage)")
+                        .foregroundColor(.red)
+                        .padding()
+                    Spacer()
+                } else {
+                    todaysProgressView
+                }
+            }
+            .navigationTitle("Your Habits")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        isShowingAddHabitSheet = true
+                    }) {
+                        HStack {
+                            Image(systemName: "plus")
+                            Text("Add Habit")
+                        }
+                    }
+                    .tint(.green)
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+            .onAppear {
+                // Set up mock progress data
+                progress = [
+                    habits[0].id: 1,
+                    habits[1].id: 0,
+                    habits[2].id: 1
+                ]
+                totalProgress = [
+                    habits[0].id: 25,
+                    habits[1].id: 15,
+                    habits[2].id: 8
+                ]
+                weeklyDisplayProgress = [
+                    habits[2].id: 1
+                ]
+            }
+            .sheet(isPresented: $isShowingAddHabitSheet) {
+                AddHabitView { newHabit in
+                    habits.append(newHabit)
+                    progress[newHabit.id] = 0
+                }
+                .environmentObject(sessionManager)
+            }
+        }
+    }
+
+    private var headerView: some View {
+        HStack {
+            Text("Your Habits")
+                .font(.largeTitle)
+                .bold()
+                .padding(.leading)
+            Spacer()
+        }
+        .padding(.bottom, 8)
+    }
+
+    private var todaysProgressView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            dateSelectorView
+                .padding(.horizontal)
+
+            ScrollView {
+                VStack(spacing: 12) {
+                    ForEach(habits) { habit in
+                        let displayProgress = habit.frequency == "weekly"
+                            ? weeklyDisplayProgress[habit.id, default: 0]
+                            : progress[habit.id, default: 0]
+
+                        HabitRow(
+                            habit: habit,
+                            displayProgress: displayProgress,
+                            totalProgress: totalProgress[habit.id, default: 0],
+                            onIncrement: {
+                                incrementHabit(for: habit)
+                            },
+                            onDecrement: {
+                                decrementHabit(for: habit)
+                            }
+                        )
+                    }
+                }
+                .padding(.horizontal)
+            }
+        }
+    }
+
+    private var dateSelectorView: some View {
+        HStack {
+            Image(systemName: "calendar")
+            Text("Today's Progress")
+                .font(.headline)
+            Spacer()
+            Button(action: {
+                currentDate = Calendar.current.date(byAdding: .day, value: -1, to: currentDate) ?? Date()
+            }) {
+                Image(systemName: "chevron.left")
+            }
+            .buttonStyle(.plain)
+
+            Text(dateFormatter.string(from: currentDate))
+                .font(.subheadline)
+                .frame(minWidth: 150)
+
+            Button(action: {
+                currentDate = Calendar.current.date(byAdding: .day, value: 1, to: currentDate) ?? Date()
+            }) {
+                Image(systemName: "chevron.right")
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func incrementHabit(for habit: Habit) {
+        updateHabitProgress(for: habit, with: 1)
+    }
+
+    private func decrementHabit(for habit: Habit) {
+        guard let dailyProgress = progress[habit.id], dailyProgress > 0 else { return }
+        updateHabitProgress(for: habit, with: -1)
+    }
+
+    private func updateHabitProgress(for habit: Habit, with diff: Int) {
+        let habitId = habit.id
+
+        let newDailyValue = (progress[habitId] ?? 0) + diff
+        progress[habitId] = newDailyValue
+
+        if habit.frequency == "weekly" {
+            weeklyDisplayProgress[habitId, default: 0] += diff
+        }
+
+        totalProgress[habitId, default: 0] += diff
+    }
+}
+#endif
+
 
