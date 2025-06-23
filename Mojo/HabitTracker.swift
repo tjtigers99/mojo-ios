@@ -9,11 +9,7 @@ struct Habit: Identifiable, Codable, Equatable {
     let priority: Int?
 
     enum CodingKeys: String, CodingKey {
-        case id
-        case name
-        case frequency
-        case goal
-        case priority
+        case id, name, frequency, goal, priority
     }
 }
 
@@ -35,6 +31,8 @@ struct HabitTracker: View {
     @EnvironmentObject var sessionManager: SessionManager
     @State private var habits: [Habit] = []
     @State private var progress: [UUID: Int] = [:]
+    @State private var weeklyDisplayProgress: [UUID: Int] = [:]
+    @State private var totalProgress: [UUID: Int] = [:]
     @State private var currentDate = Date()
     @State private var isLoading = true
     @State private var errorMessage: String?
@@ -56,7 +54,7 @@ struct HabitTracker: View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 0) {
                 headerView
-                
+
                 if isLoading {
                     Spacer()
                     ProgressView()
@@ -104,10 +102,10 @@ struct HabitTracker: View {
             }
         }
     }
-    
+
     private var headerView: some View {
         HStack {
-             Text("Your Habits")
+            Text("Your Habits")
                 .font(.largeTitle)
                 .bold()
                 .padding(.leading)
@@ -120,21 +118,24 @@ struct HabitTracker: View {
         VStack(alignment: .leading, spacing: 16) {
             dateSelectorView
                 .padding(.horizontal)
-            
+
             ScrollView {
                 VStack(spacing: 12) {
                     ForEach(habits) { habit in
+                        let displayProgress = habit.frequency == "weekly"
+                            ? weeklyDisplayProgress[habit.id, default: 0]
+                            : progress[habit.id, default: 0]
+
                         HabitRow(
                             habit: habit,
-                            progress: Binding(
-                                get: { progress[habit.id, default: 0] },
-                                set: { newValue in
-                                    progress[habit.id] = newValue
-                                    Task {
-                                        await updateLogEntry(for: habit.id, completions: newValue)
-                                    }
-                                }
-                            )
+                            displayProgress: displayProgress,
+                            totalProgress: totalProgress[habit.id, default: 0],
+                            onIncrement: {
+                                incrementHabit(for: habit)
+                            },
+                            onDecrement: {
+                                decrementHabit(for: habit)
+                            }
                         )
                     }
                 }
@@ -155,11 +156,11 @@ struct HabitTracker: View {
                 Image(systemName: "chevron.left")
             }
             .buttonStyle(.plain)
-            
+
             Text(dateFormatter.string(from: currentDate))
                 .font(.subheadline)
                 .frame(minWidth: 150)
-            
+
             Button(action: {
                 currentDate = Calendar.current.date(byAdding: .day, value: 1, to: currentDate) ?? Date()
             }) {
@@ -169,9 +170,36 @@ struct HabitTracker: View {
         }
     }
 
+    private func incrementHabit(for habit: Habit) {
+        updateHabitProgress(for: habit, with: 1)
+    }
+
+    private func decrementHabit(for habit: Habit) {
+        guard let dailyProgress = progress[habit.id], dailyProgress > 0 else { return }
+        updateHabitProgress(for: habit, with: -1)
+    }
+
+    private func updateHabitProgress(for habit: Habit, with diff: Int) {
+        let habitId = habit.id
+
+        let newDailyValue = (progress[habitId] ?? 0) + diff
+        progress[habitId] = newDailyValue
+
+        if habit.frequency == "weekly" {
+            weeklyDisplayProgress[habitId, default: 0] += diff
+        }
+
+        totalProgress[habitId, default: 0] += diff
+
+        Task {
+            await updateLogEntry(for: habitId, completions: newDailyValue)
+        }
+    }
+
     private func loadInitialData() async {
         isLoading = true
         await fetchHabits()
+        await fetchAllTimeProgress()
         await fetchLogEntries(for: currentDate)
         isLoading = false
     }
@@ -200,6 +228,27 @@ struct HabitTracker: View {
         }
     }
 
+    private func fetchAllTimeProgress() async {
+        guard let userId = sessionManager.session?.user.id else { return }
+        
+        do {
+            let allEntries: [LogEntry] = try await supabase.from("log_entries")
+                .select("id, habit_id, date, completions")
+                .eq("user_id", value: userId)
+                .execute()
+                .value
+
+            let progressByHabit = Dictionary(grouping: allEntries, by: { $0.habitId })
+                .mapValues { entries in entries.reduce(0) { $0 + $1.completions } }
+            
+            self.totalProgress = progressByHabit
+            
+        } catch {
+            self.errorMessage = error.localizedDescription
+            print("Error fetching all-time progress: \(error)")
+        }
+    }
+
     private func fetchLogEntries(for date: Date) async {
         guard let userId = sessionManager.session?.user.id else {
             errorMessage = "You must be logged in to see your progress."
@@ -216,6 +265,7 @@ struct HabitTracker: View {
         let selectedDateString = queryDateFormatter.string(from: date)
 
         var newProgress = Dictionary(uniqueKeysWithValues: habits.map { ($0.id, 0) })
+        var newWeeklyDisplayProgress = Dictionary(uniqueKeysWithValues: habits.map { ($0.id, 0) })
 
         do {
             let entries: [LogEntry] = try await supabase.from("log_entries")
@@ -231,20 +281,21 @@ struct HabitTracker: View {
 
             for (habitId, _) in newProgress {
                 guard let habit = habitsById[habitId] else { continue }
-                
+
                 let habitEntries = entriesByHabit[habitId] ?? []
+
+                if let dailyEntry = habitEntries.first(where: { $0.date == selectedDateString }) {
+                    newProgress[habitId] = dailyEntry.completions
+                }
 
                 if habit.frequency == "weekly" {
                     let weeklyTotal = habitEntries.reduce(0) { $0 + $1.completions }
-                    newProgress[habitId] = weeklyTotal
-                } else { // "daily"
-                    if let dailyEntry = habitEntries.first(where: { $0.date == selectedDateString }) {
-                        newProgress[habitId] = dailyEntry.completions
-                    }
+                    newWeeklyDisplayProgress[habitId] = weeklyTotal
                 }
             }
-            
+
             self.progress = newProgress
+            self.weeklyDisplayProgress = newWeeklyDisplayProgress
         } catch {
             self.errorMessage = error.localizedDescription
             print("Error fetching log entries: \(error)")
@@ -286,93 +337,109 @@ struct HabitTracker: View {
 
 struct HabitRow: View {
     let habit: Habit
-    @Binding var progress: Int
+    let displayProgress: Int
+    let totalProgress: Int
+    var onIncrement: () -> Void
+    var onDecrement: () -> Void
+    @State private var wavePhaseRadians: Double = 0.0
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        ZStack {
+            LiquidWave(
+                progress: fillProgress,
+                waveAmplitude: 5,
+                waveFrequency: 2,
+                phaseRadians: wavePhaseRadians
+            )
+            .fill(liquidColor.opacity(0.5))
+            .clipShape(RoundedRectangle(cornerRadius: 15))
+
             HStack {
-                Text(habit.name)
-                    .font(.headline)
-                Text(habit.frequency)
-                    .font(.caption.bold())
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .foregroundColor(habit.frequency == "daily" ? .blue : .green)
-                    .background((habit.frequency == "daily" ? Color.blue : Color.green).opacity(0.1))
-                    .clipShape(Capsule())
-                
+                VStack(alignment: .leading) {
+                    Text(habit.name)
+                        .font(.headline)
+                        .foregroundColor(.white.opacity(0.9))
+                    Text(habit.frequency)
+                        .font(.caption.bold())
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .foregroundColor(.white)
+                        .background(Color.white.opacity(0.2))
+                        .clipShape(Capsule())
+                }
+
                 Spacer()
-                
+
                 HStack(spacing: 12) {
                     Button(action: {
-                        if progress > 0 { progress -= 1 }
+                        onDecrement()
                     }) {
-                        Image(systemName: "minus")
-                            .foregroundColor(.primary)
+                        Image(systemName: "minus.circle")
+                            .font(.title2)
+                            .foregroundColor(.white)
                     }
                     .buttonStyle(.plain)
-                    
-                    Text("\(progress)/\(habit.goal)")
-                        .font(.body.monospacedDigit())
+
+                    Text("\(displayProgress)/\(habit.goal)")
+                        .font(.body.monospacedDigit().bold())
+                        .foregroundColor(.white)
                         .frame(minWidth: 40)
 
                     Button(action: {
-                        progress += 1
+                        onIncrement()
                     }) {
-                        Image(systemName: "plus")
+                        Image(systemName: "plus.circle")
+                            .font(.title2)
                             .foregroundColor(.white)
-                            .frame(width: 28, height: 28)
-                            .background(Color.blue.gradient)
-                            .clipShape(Circle())
                     }
                     .buttonStyle(.plain)
-                    
+
                     Button(action: { }) {
                         Image(systemName: "ellipsis")
-                            .foregroundColor(.primary)
+                            .foregroundColor(.white)
                     }
                     .buttonStyle(.plain)
                 }
             }
-            
-            ProgressView(value: clampedProgress, total: totalForProgressView)
-                .progressViewStyle(LinearProgressViewStyle(tint: .blue))
-            
-            Text(progressText)
-                .font(.caption)
-                .foregroundColor(.gray)
+            .padding()
         }
-        .padding()
-        .background(.background)
-        .cornerRadius(12)
+        .frame(height: 80)
+        .background(.ultraThinMaterial)
+        .cornerRadius(15)
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 15)
+                .stroke(Color.white.opacity(0.2), lineWidth: 1)
         )
+        .onAppear {
+            withAnimation(.linear(duration: 2).repeatForever(autoreverses: false)) {
+                wavePhaseRadians = 2 * .pi
+            }
+        }
     }
 
-    private var clampedProgress: Double {
-        let goal = Double(habit.goal)
-        guard goal > 0 else { return 0 }
-        return min(Double(progress), goal)
+    private var fillProgress: CGFloat {
+        let progress = CGFloat(totalProgress) / 100.0
+        return min(progress, 1.0)
     }
 
-    private var totalForProgressView: Double {
-        let goal = Double(habit.goal)
-        return goal > 0 ? goal : 1
-    }
-
-    private var progressText: String {
-        guard habit.goal > 0 else { return "0% complete" }
-        let percentage = Int((Double(progress) / Double(habit.goal)) * 100)
-        return "\(percentage)% complete"
+    private var liquidColor: Color {
+        switch habit.priority {
+        case 1:
+            return .blue
+        case 2:
+            return .orange
+        case 3:
+            return .red
+        default:
+            return .green
+        }
     }
 }
 
 private extension Date {
     var startOfWeek: Date? {
         var calendar = Calendar.current
-        calendar.firstWeekday = 2 // Monday
+        calendar.firstWeekday = 2
         let components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: self)
         return calendar.date(from: components)
     }
@@ -385,11 +452,4 @@ private extension Date {
     }
 }
 
-#if DEBUG
-struct HabitTracker_Previews: PreviewProvider {
-    static var previews: some View {
-        HabitTracker()
-            .environmentObject(SessionManager())
-    }
-}
-#endif 
+
