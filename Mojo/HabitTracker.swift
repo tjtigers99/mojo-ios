@@ -53,6 +53,7 @@ struct HabitTracker: View {
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 0) {
+                // Header View now includes the "Add Habit" button
                 headerView
 
                 if isLoading {
@@ -69,22 +70,9 @@ struct HabitTracker: View {
                     todaysProgressView
                 }
             }
-            .navigationTitle("Your Habits")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        isShowingAddHabitSheet = true
-                    }) {
-                        HStack {
-                            Image(systemName: "plus")
-                            Text("Add Habit")
-                        }
-                    }
-                    .tint(.green)
-                    .buttonStyle(.borderedProminent)
-                }
-            }
+            // Removed .navigationTitle and .navigationBarTitleDisplayMode
+            // Removed .toolbar
+
             .task {
                 await loadInitialData()
             }
@@ -103,15 +91,30 @@ struct HabitTracker: View {
         }
     }
 
+    // MARK: - Subviews
+
     private var headerView: some View {
         HStack {
             Text("Your Habits")
                 .font(.largeTitle)
                 .bold()
-                .padding(.leading)
-            Spacer()
+                .padding(.leading) // Apply padding here if you want it only for the text
+
+            Spacer() // This pushes the title and button to the edges
+
+            Button(action: {
+                isShowingAddHabitSheet = true
+            }) {
+                HStack {
+                    Image(systemName: "plus")
+                    Text("Add Habit")
+                }
+            }
+            .tint(.green)
+            .buttonStyle(.borderedProminent)
+            .padding(.trailing) // Add padding to the trailing edge of the button
         }
-        .padding(.bottom, 8)
+        .padding(.bottom, 8) // Padding for the whole header Hstack
     }
 
     private var todaysProgressView: some View {
@@ -170,6 +173,8 @@ struct HabitTracker: View {
         }
     }
 
+    // MARK: - Habit Progress Logic
+
     private func incrementHabit(for habit: Habit) {
         updateHabitProgress(for: habit, with: 1)
     }
@@ -195,6 +200,8 @@ struct HabitTracker: View {
             await updateLogEntry(for: habitId, completions: newDailyValue)
         }
     }
+
+    // MARK: - Supabase Data Fetching and Updating
 
     private func loadInitialData() async {
         isLoading = true
@@ -230,7 +237,7 @@ struct HabitTracker: View {
 
     private func fetchAllTimeProgress() async {
         guard let userId = sessionManager.session?.user.id else { return }
-        
+
         do {
             let allEntries: [LogEntry] = try await supabase.from("log_entries")
                 .select("id, habit_id, date, completions")
@@ -240,9 +247,9 @@ struct HabitTracker: View {
 
             let progressByHabit = Dictionary(grouping: allEntries, by: { $0.habitId })
                 .mapValues { entries in entries.reduce(0) { $0 + $1.completions } }
-            
+
             self.totalProgress = progressByHabit
-            
+
         } catch {
             self.errorMessage = error.localizedDescription
             print("Error fetching all-time progress: \(error)")
@@ -358,12 +365,12 @@ struct HabitRow: View {
                 VStack(alignment: .leading) {
                     Text(habit.name)
                         .font(.headline)
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundColor(.primary)
                     Text(habit.frequency)
                         .font(.caption.bold())
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .foregroundColor(.white)
+                        .foregroundColor(.primary)
                         .background(Color.white.opacity(0.2))
                         .clipShape(Capsule())
                 }
@@ -382,7 +389,7 @@ struct HabitRow: View {
 
                     Text("\(displayProgress)/\(habit.goal)")
                         .font(.body.monospacedDigit().bold())
-                        .foregroundColor(.white)
+                        .foregroundColor(.primary)
                         .frame(minWidth: 40)
 
                     Button(action: {
@@ -390,7 +397,7 @@ struct HabitRow: View {
                     }) {
                         Image(systemName: "plus.circle")
                             .font(.title2)
-                            .foregroundColor(.white)
+                            .foregroundColor(.secondary)
                     }
                     .buttonStyle(.plain)
 
@@ -485,6 +492,7 @@ struct HabitTrackerPreview: View {
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 0) {
+                // Header View now includes the "Add Habit" button
                 headerView
 
                 if isLoading {
@@ -501,38 +509,7 @@ struct HabitTrackerPreview: View {
                     todaysProgressView
                 }
             }
-            .navigationTitle("Your Habits")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        isShowingAddHabitSheet = true
-                    }) {
-                        HStack {
-                            Image(systemName: "plus")
-                            Text("Add Habit")
-                        }
-                    }
-                    .tint(.green)
-                    .buttonStyle(.borderedProminent)
-                }
-            }
-            .onAppear {
-                // Set up mock progress data
-                progress = [
-                    habits[0].id: 1,
-                    habits[1].id: 0,
-                    habits[2].id: 1
-                ]
-                totalProgress = [
-                    habits[0].id: 25,
-                    habits[1].id: 15,
-                    habits[2].id: 8
-                ]
-                weeklyDisplayProgress = [
-                    habits[2].id: 1
-                ]
-            }
+            // Removed .onAppear as it was only for setting mock data, not relevant for button placement
             .sheet(isPresented: $isShowingAddHabitSheet) {
                 AddHabitView { newHabit in
                     habits.append(newHabit)
@@ -548,14 +525,28 @@ struct HabitTrackerPreview: View {
             Text("Your Habits")
                 .font(.largeTitle)
                 .bold()
-                .padding(.leading)
-            Spacer()
+                .padding(.leading) // Apply padding here if you want it only for the text
+
+            Spacer() // This pushes the title and button to the edges
+
+            Button(action: {
+                isShowingAddHabitSheet = true
+            }) {
+                HStack {
+                    Image(systemName: "plus")
+                    Text("Add Habit")
+                }
+            }
+            .tint(.green)
+            .buttonStyle(.borderedProminent)
+            .padding(.trailing) // Add padding to the trailing edge of the button
         }
-        .padding(.bottom, 8)
+        .padding(.bottom, 20) // Padding for the whole header Hstack
     }
 
+
     private var todaysProgressView: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 20) {
             dateSelectorView
                 .padding(.horizontal)
 
@@ -586,10 +577,6 @@ struct HabitTrackerPreview: View {
 
     private var dateSelectorView: some View {
         HStack {
-            Image(systemName: "calendar")
-            Text("Today's Progress")
-                .font(.headline)
-            Spacer()
             Button(action: {
                 currentDate = Calendar.current.date(byAdding: .day, value: -1, to: currentDate) ?? Date()
             }) {
@@ -597,9 +584,16 @@ struct HabitTrackerPreview: View {
             }
             .buttonStyle(.plain)
 
+            // Add a Spacer here to push content to the center/right
+            Spacer()
+
             Text(dateFormatter.string(from: currentDate))
                 .font(.subheadline)
-                .frame(minWidth: 150)
+                // Removed .frame(minWidth: 150) to allow it to expand
+                .bold() // Make the date more prominent if it's taking more space
+
+            // Add a Spacer here to push content to the center/left
+            Spacer()
 
             Button(action: {
                 currentDate = Calendar.current.date(byAdding: .day, value: 1, to: currentDate) ?? Date()
@@ -608,6 +602,7 @@ struct HabitTrackerPreview: View {
             }
             .buttonStyle(.plain)
         }
+        .padding(.horizontal) // Apply padding to the entire HStack to control its edge spacing
     }
 
     private func incrementHabit(for habit: Habit) {
@@ -633,5 +628,3 @@ struct HabitTrackerPreview: View {
     }
 }
 #endif
-
-

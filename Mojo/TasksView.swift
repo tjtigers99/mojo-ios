@@ -82,6 +82,7 @@ struct TasksView: View {
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 0) {
+                // The headerView now contains the title AND the button
                 headerView
 
                 if isLoading {
@@ -98,22 +99,10 @@ struct TasksView: View {
                     tasksListView
                 }
             }
-            .navigationTitle("Your Tasks")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        isShowingAddTaskSheet = true
-                    }) {
-                        HStack {
-                            Image(systemName: "plus")
-                            Text("Add Task")
-                        }
-                    }
-                    .tint(.green)
-                    .buttonStyle(.borderedProminent)
-                }
-            }
+            // Removed .navigationTitle("Your Tasks")
+            // Removed .navigationBarTitleDisplayMode(.inline)
+            // Removed .toolbar { ... }
+
             .task {
                 await loadTasks()
             }
@@ -126,15 +115,32 @@ struct TasksView: View {
         }
     }
 
+    // ---
+    // MARK: - Subviews
+    // ---
+
     private var headerView: some View {
         HStack {
             Text("Your Tasks")
                 .font(.largeTitle)
                 .bold()
-                .padding(.leading)
-            Spacer()
+                .padding(.leading) // Padding for the text title
+
+            Spacer() // Pushes the title to the left and button to the right
+
+            Button(action: {
+                isShowingAddTaskSheet = true
+            }) {
+                HStack {
+                    Image(systemName: "plus")
+                    Text("Add Task")
+                }
+            }
+            .tint(.green)
+            .buttonStyle(.borderedProminent)
+            .padding(.trailing) // Padding for the button
         }
-        .padding(.bottom, 8)
+        .padding(.bottom, 8) // Padding for the entire HStack containing title and button
     }
 
     private var tasksListView: some View {
@@ -168,6 +174,10 @@ struct TasksView: View {
             Spacer()
         }
     }
+
+    // ---
+    // MARK: - Data Operations
+    // ---
 
     private func loadTasks() async {
         isLoading = true
@@ -226,6 +236,10 @@ struct TasksView: View {
         }
     }
 }
+
+// ---
+// MARK: - TaskRow, AddTaskView and Previews (unchanged from your code, but keep them in your file)
+// ---
 
 struct TaskRow: View {
     let task: MojoTask
@@ -526,6 +540,7 @@ struct TasksViewPreview: View {
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 0) {
+                // The headerView now contains the title AND the button
                 headerView
 
                 if isLoading {
@@ -542,22 +557,9 @@ struct TasksViewPreview: View {
                     tasksListView
                 }
             }
-            .navigationTitle("Your Tasks")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        isShowingAddTaskSheet = true
-                    }) {
-                        HStack {
-                            Image(systemName: "plus")
-                            Text("Add Task")
-                        }
-                    }
-                    .tint(.green)
-                    .buttonStyle(.borderedProminent)
-                }
-            }
+            // Removed .navigationTitle("Your Tasks")
+            // Removed .navigationBarTitleDisplayMode(.inline)
+            // Removed .toolbar { ... }
             .sheet(isPresented: $isShowingAddTaskSheet) {
                 AddTaskView { newTask in
                     tasks.append(newTask)
@@ -572,10 +574,23 @@ struct TasksViewPreview: View {
             Text("Your Tasks")
                 .font(.largeTitle)
                 .bold()
-                .padding(.leading)
-            Spacer()
+                .padding(.leading) // Padding for the text title
+
+            Spacer() // Pushes the title to the left and button to the right
+
+            Button(action: {
+                isShowingAddTaskSheet = true
+            }) {
+                HStack {
+                    Image(systemName: "plus")
+                    Text("Add Task")
+                }
+            }
+            .tint(.green)
+            .buttonStyle(.borderedProminent)
+            .padding(.trailing) // Padding for the button
         }
-        .padding(.bottom, 8)
+        .padding(.bottom, 8) // Padding for the entire HStack containing title and button
     }
 
     private var tasksListView: some View {
@@ -587,6 +602,9 @@ struct TasksViewPreview: View {
                 VStack(spacing: 12) {
                     ForEach(filteredTasks) { task in
                         TaskRow(task: task) { completed in
+                            // Note: In a preview, you might want a simpler local update
+                            // or a mock data update, as actual Supabase calls won't work.
+                            // For a real app, you'd call a function that updates Supabase.
                             if let index = tasks.firstIndex(where: { $0.id == task.id }) {
                                 tasks[index] = MojoTask(
                                     id: task.id,
@@ -620,4 +638,4 @@ struct TasksViewPreview: View {
         }
     }
 }
-#endif 
+#endif
