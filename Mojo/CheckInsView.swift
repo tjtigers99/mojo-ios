@@ -592,38 +592,70 @@ struct RatingCard: View {
     let onNoteChanged: (String) -> Void
 
     @State private var showingNoteField = false
+    @State private var selectedValue: Double = 4.0 // Default to middle value
+
+    // Scale configuration for 1-8 rating system
+    let scaleMin: Double = 1.0
+    let scaleMax: Double = 8.0
+    let step: Double = 1.0
+
+    // Labels for each step
+    let labels: [String] = ["Terrible", "Poor", "Okay", "Good", "Great", "Excellent", "Amazing", "Perfect"]
+
+    var currentLabel: String {
+        let index = Int(selectedValue - scaleMin)
+        return labels[min(max(index, 0), labels.count - 1)]
+    }
+
+    var fillPercentage: CGFloat {
+        CGFloat((selectedValue - scaleMin) / (scaleMax - scaleMin))
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 16) {
+            // Category name
+            Text(rating.categoryName)
+                .font(.headline)
+                .foregroundColor(.primary)
+
+            // Purple segmented bar (visual only)
+            PurpleSegmentedBar(fillPercentage: .constant(fillPercentage))
+                .frame(height: 30)
+                .padding(.bottom, 8)
+
+            // New control element below the bar
             HStack {
-                Text(rating.categoryName)
-                    .font(.headline)
-                    .foregroundColor(.primary)
+                Spacer()
+                PurpleSliderControl(
+                    fillPercentage: fillPercentage,
+                    onChange: { newPercentage in
+                        let newValue = scaleMin + (Double(newPercentage) * (scaleMax - scaleMin))
+                        selectedValue = max(scaleMin, min(scaleMax, newValue))
+                        let intValue = Int(selectedValue)
+                        onRatingChanged(intValue)
+                        if intValue <= 3 || intValue >= 7 {
+                            showingNoteField = true
+                        }
+                    }
+                )
+                .frame(width: 150, height: 36) // About half the bar width
                 Spacer()
             }
 
-            HStack(spacing: 8) {
-                ForEach(1...8, id: \.self) { value in
-                    Button(action: {
-                        onRatingChanged(value)
-                        if value <= 3 || value >= 7 {
-                            showingNoteField = true
-                        }
-                    }) {
-                        Text("\(value)")
-                            .font(.system(.body, design: .rounded).bold())
-                            .frame(width: 35, height: 35)
-                            .background(rating.rating == value ? Color.blue : Color.gray.opacity(0.2))
-                            .foregroundColor(rating.rating == value ? .white : .primary)
-                            .clipShape(Circle())
-                    }
-                    .buttonStyle(.plain)
-                }
+            // Label only (no numbers)
+            HStack {
+                Spacer()
+                Text(currentLabel)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Spacer()
             }
+            .padding(.horizontal)
 
-            if showingNoteField && (rating.rating <= 3 || rating.rating >= 7) {
+            // Note field for extreme values
+            if showingNoteField && (Int(selectedValue) <= 3 || Int(selectedValue) >= 7) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(rating.rating <= 3 ? "What's going on?" : "What's going well?")
+                    Text(Int(selectedValue) <= 3 ? "What's going on?" : "What's going well?")
                         .font(.caption)
                         .foregroundColor(.secondary)
 
@@ -643,6 +675,110 @@ struct RatingCard: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.white.opacity(0.2), lineWidth: 1)
         )
+        .onAppear {
+            // Initialize with current rating
+            selectedValue = Double(rating.rating)
+        }
+    }
+}
+
+// MARK: - Purple Segmented Bar (visual only, no drag)
+struct PurpleSegmentedBar: View {
+    let fillPercentage: Binding<CGFloat>
+    
+    let numberOfSegments: Int = 8 // Match the 1-8 rating scale
+    let segmentSpacing: CGFloat = 2
+    
+    let barWidth: CGFloat = 300
+    let barHeight: CGFloat = 30
+    
+    var body: some View {
+        ZStack(alignment: .leading) {
+            // Background of the bar (empty state)
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.gray.opacity(0.2))
+                .frame(width: barWidth, height: barHeight)
+            
+            // Segmented Fill
+            HStack(spacing: segmentSpacing) {
+                ForEach(0..<numberOfSegments, id: \.self) { index in
+                    let segmentFillThreshold = CGFloat(index + 1) / CGFloat(numberOfSegments)
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(segmentColor(for: segmentFillThreshold))
+                        .opacity(fillPercentage.wrappedValue >= segmentFillThreshold - (0.5 / CGFloat(numberOfSegments)) ? 1.0 : 0.0)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .frame(width: barWidth, height: barHeight)
+            .clipped()
+        }
+        .frame(width: barWidth, height: barHeight)
+    }
+    
+    func segmentColor(for threshold: CGFloat) -> Color {
+        if fillPercentage.wrappedValue >= threshold {
+            // Purple gradient from light to dark
+            if threshold <= 0.25 { // Light purple (1-2)
+                return Color.purple.opacity(0.3)
+            } else if threshold <= 0.5 { // Medium light purple (3-4)
+                return Color.purple.opacity(0.5)
+            } else if threshold <= 0.75 { // Medium purple (5-6)
+                return Color.purple.opacity(0.7)
+            } else { // Dark purple (7-8)
+                return Color.purple
+            }
+        } else {
+            return .clear
+        }
+    }
+}
+
+// MARK: - Purple Slider Control (draggable thumb below bar)
+struct PurpleSliderControl: View {
+    var fillPercentage: CGFloat // 0...1
+    var onChange: (CGFloat) -> Void
+    
+    @GestureState private var dragOffset: CGFloat = 0
+    
+    let controlWidth: CGFloat = 150
+    let controlHeight: CGFloat = 36
+    let thumbWidth: CGFloat = 48
+    let thumbHeight: CGFloat = 36
+    
+    var body: some View {
+        ZStack(alignment: .leading) {
+            Capsule()
+                .fill(Color.purple.opacity(0.15))
+                .frame(width: controlWidth, height: controlHeight)
+            
+            // Thumb
+            Capsule()
+                .fill(Color.white)
+                .frame(width: thumbWidth, height: thumbHeight)
+                .shadow(radius: 2)
+                .overlay(
+                    Capsule()
+                        .stroke(Color.purple.opacity(0.3), lineWidth: 1)
+                )
+                .offset(x: xOffsetForThumb())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .updating($dragOffset) { value, state, _ in
+                            let x = value.translation.width
+                            state = x
+                        }
+                        .onChanged { value in
+                            let x = value.location.x - thumbWidth / 2
+                            let percent = min(max(x / (controlWidth - thumbWidth), 0), 1)
+                            onChange(percent)
+                        }
+                )
+        }
+        .frame(width: controlWidth, height: controlHeight)
+    }
+    
+    private func xOffsetForThumb() -> CGFloat {
+        (controlWidth - thumbWidth) * fillPercentage
     }
 }
 
@@ -1148,6 +1284,24 @@ struct CheckInsView_Previews: PreviewProvider {
     }
 }
 
+// Simple preview for the new purple segmented bar RatingCard
+struct PurpleRatingCard_Previews: PreviewProvider {
+    static var previews: some View {
+        RatingCard(
+            rating: CheckInRating(
+                categoryId: UUID(),
+                categoryName: "Work",
+                rating: 5,
+                note: "Had a productive meeting"
+            ),
+            onRatingChanged: { _ in },
+            onNoteChanged: { _ in }
+        )
+        .padding()
+        .background(Color.gray.opacity(0.1))
+    }
+}
+
 // Preview-specific version with mock data
 struct CheckInsViewPreview: View {
     @EnvironmentObject var sessionManager: SessionManager
@@ -1438,6 +1592,46 @@ struct CheckInsViewPreview: View {
                 .cornerRadius(12)
         }
         .disabled(todayRatings.isEmpty || !todayRatings.contains { $0.rating > 0 })
+    }
+}
+
+// MARK: - Purple Segmented Bar Preview
+
+struct PurpleSegmentedBar_Previews: PreviewProvider {
+    static var previews: some View {
+        VStack(spacing: 20) {
+            Text("Purple Segmented Bar Examples")
+                .font(.headline)
+                .padding(.bottom)
+            
+            VStack(spacing: 15) {
+                HStack {
+                    Text("Low (2/8):")
+                        .frame(width: 80, alignment: .leading)
+                    PurpleSegmentedBar(fillPercentage: .constant(0.25))
+                }
+                
+                HStack {
+                    Text("Medium (4/8):")
+                        .frame(width: 80, alignment: .leading)
+                    PurpleSegmentedBar(fillPercentage: .constant(0.5))
+                }
+                
+                HStack {
+                    Text("High (6/8):")
+                        .frame(width: 80, alignment: .leading)
+                    PurpleSegmentedBar(fillPercentage: .constant(0.75))
+                }
+                
+                HStack {
+                    Text("Perfect (8/8):")
+                        .frame(width: 80, alignment: .leading)
+                    PurpleSegmentedBar(fillPercentage: .constant(1.0))
+                }
+            }
+        }
+        .padding()
+        .background(Color.gray.opacity(0.1))
     }
 }
 #endif
